@@ -138,6 +138,7 @@ export function agentKeyboard() {
         [{ text: 'Toggle Agent', callback_data: 'toggle:agent' }],
         [
           { text: 'Dry Run', callback_data: 'set:trading_mode:dry_run' },
+          { text: 'Confirm Dry', callback_data: 'set:trading_mode:confirm_dry' },
           { text: 'Confirm', callback_data: 'set:trading_mode:confirm' },
           { text: 'Live', callback_data: 'set:trading_mode:live' },
         ],

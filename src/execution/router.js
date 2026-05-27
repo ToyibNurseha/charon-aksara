@@ -5,7 +5,7 @@ import { WSOL_MINT, LIVE_MIN_SOL_RESERVE_LAMPORTS } from '../config.js';
 import { escapeHtml, fmtSol } from '../format.js';
 import { executeJupiterSwap, liveWalletBalanceLamports, fetchLiveTokenBalance } from '../liveExecutor.js';
 import { activeStrategy } from '../db/settings.js';
-import { createLivePosition, canOpenMorePositions, openPositionCount } from '../db/positions.js';
+import { createLivePosition, createDryRunPosition, canOpenMorePositions, openPositionCount } from '../db/positions.js';
 import { intentById } from '../db/intents.js';
 import { logDecisionEvent } from '../db/decisions.js';
 import { refreshCandidateForExecution } from './positions.js';
@@ -109,6 +109,48 @@ export async function executeConfirmedIntent(chatId, intentId) {
   } catch (err) {
     db.prepare('UPDATE trade_intents SET status = ?, updated_at_ms = ? WHERE id = ?').run('execution_failed', now(), intentId);
     return bot.sendMessage(chatId, `Live execution failed: ${escapeHtml(err.message)}`, { parse_mode: 'HTML' });
+  }
+}
+
+export async function executeConfirmedDryIntent(chatId, intentId) {
+  const intent = intentById(intentId);
+  if (!intent || intent.status !== 'pending_confirmation') return bot.sendMessage(chatId, 'Pending intent not found.');
+  if (!canOpenMorePositions()) {
+    return bot.sendMessage(chatId, `Max open positions reached (${openPositionCount()}/${numSetting('max_open_positions', 3)}).`);
+  }
+  const { decision } = intent.payload;
+  try {
+    const freshRow = await refreshCandidateForExecution({
+      id: intent.candidate_id,
+      candidate: intent.payload.candidate,
+    });
+    if (!freshRow.candidate.filters?.passed) {
+      db.prepare('UPDATE trade_intents SET status = ?, updated_at_ms = ? WHERE id = ?').run('rejected_stale', now(), intentId);
+      return bot.sendMessage(chatId, [
+        '🛑 <b>Dry intent rejected on fresh check</b>',
+        '',
+        candidateSummary(freshRow.candidate, decision),
+        '',
+        `Failures: ${escapeHtml((freshRow.candidate.filters?.failures || []).join('; ') || 'fresh execution guard failed')}`,
+      ].join('\n'), { parse_mode: 'HTML', disable_web_page_preview: true });
+    }
+    const positionId = await createDryRunPosition(intent.candidate_id, freshRow.candidate, decision, `confirmed_dry_intent_${intentId}`);
+    db.prepare('UPDATE trade_intents SET status = ?, updated_at_ms = ? WHERE id = ?').run('executed_dry', now(), intentId);
+    logDecisionEvent({
+      batchId: null,
+      triggerCandidateId: intent.candidate_id,
+      selectedRow: freshRow,
+      rows: [],
+      decision,
+      mode: 'confirm_dry',
+      action: 'confirmed_dry_intent_executed',
+      guardrails: { intentId },
+      execution: { positionId },
+    });
+    return sendPositionOpen(positionId);
+  } catch (err) {
+    db.prepare('UPDATE trade_intents SET status = ?, updated_at_ms = ? WHERE id = ?').run('execution_failed', now(), intentId);
+    return bot.sendMessage(chatId, `Dry intent execution failed: ${escapeHtml(err.message)}`, { parse_mode: 'HTML' });
   }
 }
 

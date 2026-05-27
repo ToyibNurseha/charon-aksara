@@ -11,7 +11,7 @@ export function summarizeLearningWindow(windowMs) {
     SELECT *
     FROM dry_run_positions
     WHERE opened_at_ms >= ?
-      AND COALESCE(execution_mode, 'dry_run') = 'dry_run'
+      AND COALESCE(execution_mode, 'dry_run') IN ('dry_run', 'confirm_dry')
     ORDER BY opened_at_ms ASC
   `).all(cutoff);
   const closed = positions.filter(position => position.status === 'closed');

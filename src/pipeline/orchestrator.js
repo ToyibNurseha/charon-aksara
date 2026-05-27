@@ -167,6 +167,23 @@ export async function handleApprovedBuy(selectedRow, decision, batchId, rows = [
     return;
   }
 
+  if (mode === 'confirm_dry') {
+    const intentId = createTradeIntent(freshSelectedRow.id, freshSelectedRow.candidate, decision, mode, 'pending_confirmation');
+    logDecisionEvent({
+      batchId,
+      triggerCandidateId,
+      selectedRow: freshSelectedRow,
+      rows: executionRows,
+      decision,
+      mode,
+      action: 'confirm_dry_intent_created',
+      guardrails: { maxOpenPositions: numSetting('max_open_positions', 3), openPositions: openPositionCount() },
+      execution: { intentId },
+    });
+    await sendTradeIntent(intentId, freshSelectedRow.candidate, decision, true);
+    return;
+  }
+
   if (mode === 'confirm') {
     const intentId = createTradeIntent(freshSelectedRow.id, freshSelectedRow.candidate, decision, mode, 'pending_confirmation');
     logDecisionEvent({
@@ -180,7 +197,7 @@ export async function handleApprovedBuy(selectedRow, decision, batchId, rows = [
       guardrails: { maxOpenPositions: numSetting('max_open_positions', 3), openPositions: openPositionCount() },
       execution: { intentId },
     });
-    await sendTradeIntent(intentId, freshSelectedRow.candidate, decision);
+    await sendTradeIntent(intentId, freshSelectedRow.candidate, decision, false);
     return;
   }
 

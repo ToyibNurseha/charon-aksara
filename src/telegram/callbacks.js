@@ -22,7 +22,8 @@ import { candidateSummary } from './format.js';
 import { candidateById, updateCandidateStatus } from '../db/candidates.js';
 import { storeDecision, logDecisionEvent } from '../db/decisions.js';
 import { createDryRunPosition, canOpenMorePositions, openPositionCount, tradingMode } from '../db/positions.js';
-import { executeLiveBuy, executeConfirmedIntent, rejectIntent } from '../execution/router.js';
+import { executeLiveBuy, executeConfirmedIntent, executeConfirmedDryIntent, rejectIntent } from '../execution/router.js';
+import { intentById } from '../db/intents.js';
 import { sendCandidate, sendPosition, closePosition, updatePositionRule, toggleTrailing } from './commands.js';
 import { requestNumericFilterInput, requestStrategyNumericInput } from './input.js';
 
@@ -83,7 +84,11 @@ export async function handleCallback(query) {
   if (kind === 'set') return updateSettingFromButton(query, id, value);
   if (kind === 'batch') return sendBatch(chatId, Number(id));
   if (kind === 'intent') {
-    if (value === 'confirm') return executeConfirmedIntent(chatId, Number(id));
+    if (value === 'confirm') {
+      const intent = intentById(Number(id));
+      if (intent?.mode === 'confirm_dry') return executeConfirmedDryIntent(chatId, Number(id));
+      return executeConfirmedIntent(chatId, Number(id));
+    }
     if (value === 'reject') return rejectIntent(chatId, Number(id));
   }
   if (kind === 'cand') return sendCandidate(chatId, Number(id));

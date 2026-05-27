@@ -1,11 +1,12 @@
 import { setDefaultResultOrder } from 'node:dns';
-import { APP_NAME, SIGNAL_SERVER_URL, SIGNAL_POLL_MS, GRADUATED_POLL_MS, TRENDING_POLL_MS, POSITION_CHECK_MS, validateConfig } from './config.js';
+import { APP_NAME, SIGNAL_SERVER_URL, SIGNAL_POLL_MS, GRADUATED_POLL_MS, TRENDING_POLL_MS, POSITION_CHECK_MS, POSITION_UPDATE_MS, validateConfig } from './config.js';
 import { initDb } from './db/connection.js';
 import { initLiveExecution } from './liveExecutor.js';
 import { setupTelegram } from './telegram/commands.js';
 import { monitorPositions } from './execution/positions.js';
 import { processCandidateFromSignals, maybeProcessDegenCandidate } from './pipeline/orchestrator.js';
-import { sendTelegram } from './telegram/send.js';
+import { sendTelegram, sendOpenPositionsSummary } from './telegram/send.js';
+import { fetchSolUsdPrice } from './enrichment/jupiter.js';
 import { makeFailureTracker } from './utils.js';
 
 setDefaultResultOrder('ipv4first');
@@ -57,7 +58,10 @@ export async function startCharon() {
     console.log(`[bot] ${APP_NAME} started (standalone mode)`);
   }
 
+  fetchSolUsdPrice().catch(() => {});
+
   // Position monitoring runs in both modes
   const trackPositions = makeFailureTracker('position monitor', (msg) => sendTelegram(msg));
   setInterval(() => trackPositions(() => monitorPositions()), POSITION_CHECK_MS);
+  setInterval(() => sendOpenPositionsSummary().catch(err => console.log(`[positions] update error: ${err.message}`)), POSITION_UPDATE_MS);
 }

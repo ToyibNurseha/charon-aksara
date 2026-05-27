@@ -77,6 +77,9 @@ async function fetchJupiterAsset(mint, { useCache = true, ttlMs = 20_000 } = {})
   }
 }
 
+let _cachedSolUsd = null;
+export function getCachedSolUsdPrice() { return _cachedSolUsd; }
+
 async function fetchSolUsdPrice() {
   try {
     const res = await axios.get(`https://lite-api.jup.ag/price/v3?ids=${WSOL_MINT}`, {
@@ -84,6 +87,7 @@ async function fetchSolUsdPrice() {
       headers: JSON_HEADERS,
     });
     const price = Number(res.data?.[WSOL_MINT]?.usdPrice);
+    if (Number.isFinite(price) && price > 0) _cachedSolUsd = price;
     return Number.isFinite(price) && price > 0 ? price : null;
   } catch (err) {
     console.log(`[sol-price] ${err.response?.status || ''} ${err.message}`);

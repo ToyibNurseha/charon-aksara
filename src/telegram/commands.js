@@ -29,6 +29,8 @@ import { handleCallback, editMenuMessage } from './callbacks.js';
 import { consumeNumericFilterInput } from './input.js';
 import { runLearning, sendLessons } from '../learning/commands.js';
 import { fetchWalletPnl } from '../enrichment/wallets.js';
+import { parseWindowMs, formatWindow } from '../utils.js';
+import { fmtSol } from '../format.js';
 
 export async function handleMessage(msg) {
   const text = (msg.text || '').trim();
@@ -74,6 +76,10 @@ export async function handleMessage(msg) {
     }
     updateStrategyConfig(id, newConfig);
     return bot.sendMessage(chatId, `Updated ${id}.${key} = ${value}\n\n${strategyMenuText()}`, { parse_mode: 'HTML' });
+  }
+  if (text.startsWith('/drypnl')) {
+    const windowArg = text.split(/\s+/)[1] || 'all';
+    return sendDryPnl(chatId, windowArg);
   }
   if (text.startsWith('/pnl')) return sendPnl(chatId);
   if (text.startsWith('/learn')) {
@@ -244,6 +250,7 @@ export function setupTelegram() {
     { command: 'positions', description: 'Show dry-run positions' },
     { command: 'candidate', description: 'Show candidate by mint' },
     { command: 'filters', description: 'Show filters' },
+    { command: 'drypnl', description: 'Show dry-run PnL (total + daily). Usage: /drypnl [24h|7d|30d]' },
     { command: 'pnl', description: 'Show saved-wallet PnL' },
     { command: 'learn', description: 'Run manual learning report' },
     { command: 'lessons', description: 'Show active screening lessons' },
@@ -289,6 +296,61 @@ async function sendPnl(chatId, query = null) {
   }
   const text = `📊 <b>PnL</b>\n\n${chunks.join('\n\n')}`;
   return query ? editMenuMessage(query, text, navKeyboard()) : bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
+}
+
+async function sendDryPnl(chatId, windowArg = 'all') {
+  const isAll = windowArg === 'all';
+  const cutoff = isAll ? 0 : now() - parseWindowMs(windowArg);
+  const label = isAll ? 'All time' : `Last ${formatWindow(parseWindowMs(windowArg))}`;
+
+  const totals = db.prepare(`
+    SELECT
+      COUNT(*) AS opened,
+      SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed,
+      SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_count,
+      SUM(CASE WHEN status = 'closed' AND pnl_percent > 0 THEN 1 ELSE 0 END) AS wins,
+      SUM(CASE WHEN status = 'closed' AND pnl_percent < 0 THEN 1 ELSE 0 END) AS losses,
+      SUM(CASE WHEN status = 'closed' THEN COALESCE(pnl_sol, 0) ELSE 0 END) AS total_pnl_sol,
+      AVG(CASE WHEN status = 'closed' THEN pnl_percent ELSE NULL END) AS avg_pnl_pct
+    FROM dry_run_positions
+    WHERE COALESCE(execution_mode, 'dry_run') IN ('dry_run', 'confirm_dry')
+      AND opened_at_ms >= ?
+  `).get(cutoff);
+
+  const daily = db.prepare(`
+    SELECT
+      date(opened_at_ms / 1000, 'unixepoch', 'localtime') AS day,
+      COUNT(*) AS opened,
+      SUM(CASE WHEN status = 'closed' AND pnl_percent > 0 THEN 1 ELSE 0 END) AS wins,
+      SUM(CASE WHEN status = 'closed' AND pnl_percent < 0 THEN 1 ELSE 0 END) AS losses,
+      SUM(CASE WHEN status = 'closed' THEN COALESCE(pnl_sol, 0) ELSE 0 END) AS pnl_sol
+    FROM dry_run_positions
+    WHERE COALESCE(execution_mode, 'dry_run') IN ('dry_run', 'confirm_dry')
+      AND opened_at_ms >= ?
+    GROUP BY day
+    ORDER BY day DESC
+    LIMIT 7
+  `).all(cutoff);
+
+  const winRate = totals.closed > 0 ? (totals.wins / totals.closed * 100) : null;
+  const lines = [
+    `📊 <b>Dry Run PnL — ${escapeHtml(label)}</b>`,
+    '',
+    `Opened: ${totals.opened} · Closed: ${totals.closed} · Open: ${totals.open_count}`,
+    `Wins: ${totals.wins} · Losses: ${totals.losses} · Win rate: ${winRate !== null ? fmtPct(winRate) : 'n/a'}`,
+    `Total PnL: <b>${fmtSol(totals.total_pnl_sol || 0)} SOL</b> · Avg: ${totals.avg_pnl_pct !== null ? fmtPct(totals.avg_pnl_pct) : 'n/a'}`,
+  ];
+
+  if (daily.length) {
+    lines.push('', '<b>Daily (last 7 days)</b>');
+    for (const row of daily) {
+      const sign = (row.pnl_sol || 0) >= 0 ? '+' : '';
+      lines.push(`${escapeHtml(row.day)}: ${row.opened} pos · W${row.wins}/L${row.losses} · ${sign}${fmtSol(row.pnl_sol || 0)} SOL`);
+    }
+  }
+
+  lines.push('', '<i>Use /drypnl 24h, /drypnl 7d, /drypnl 30d for windowed view</i>');
+  return bot.sendMessage(chatId, lines.join('\n'), { parse_mode: 'HTML' });
 }
 
 function parseSetFilter(text) {

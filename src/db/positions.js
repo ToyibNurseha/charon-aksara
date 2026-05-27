@@ -19,7 +19,7 @@ export function canOpenMorePositions() {
 
 export function tradingMode() {
   const mode = setting('trading_mode', 'dry_run');
-  return ['dry_run', 'confirm', 'live'].includes(mode) ? mode : 'dry_run';
+  return ['dry_run', 'confirm_dry', 'confirm', 'live'].includes(mode) ? mode : 'dry_run';
 }
 
 export function allPositions(limit = 10) {
