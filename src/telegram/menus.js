@@ -122,7 +122,7 @@ export function agentText() {
     `Mode: <b>${escapeHtml(tradingMode())}</b>`,
     `LLM: <b>${strat.use_llm && ENABLE_LLM && LLM_API_KEY ? 'configured' : 'disabled'}</b>`,
     `Confidence: ${fmtPct(strat.llm_min_confidence || numSetting('llm_min_confidence', 75))}`,
-    `Open positions: ${openPositionCount()}/${strat.max_open_positions || 'unlimited'}`,
+    `Open positions: ${openPositionCount()}/${numSetting('max_open_positions', strat.max_open_positions || 3)}`,
     `Batch candidates: ${numSetting('llm_candidate_pick_count', 10)}`,
     `Candidate freshness: ${Math.round(numSetting('llm_candidate_max_age_ms', 600000) / 1000)}s`,
     `Size: ${fmtSol(strat.position_size_sol)} SOL`,
