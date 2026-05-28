@@ -98,10 +98,11 @@ export function batchRevealSummary(batchId, rows, decision, triggerCandidateId =
 }
 
 export function formatPosition(position) {
+  const currentMcap = position._currentMcap ?? position.high_water_mcap;
   const pnl = position.pnl_percent != null
     ? Number(position.pnl_percent)
-    : position.entry_mcap && position.high_water_mcap
-      ? (Number(position.high_water_mcap) / Number(position.entry_mcap) - 1) * 100
+    : position.entry_mcap && currentMcap
+      ? (Number(currentMcap) / Number(position.entry_mcap) - 1) * 100
       : 0;
   return [
     `📍 <b>${escapeHtml(position.symbol || short(position.mint))}</b> #${position.id}`,

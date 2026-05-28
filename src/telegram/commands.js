@@ -161,10 +161,25 @@ export async function sendCandidate(chatId, id) {
   });
 }
 
-export async function sendPositions(chatId) {
+export async function buildPositionsText() {
   const rows = allPositions(12);
-  const text = rows.length ? rows.map(formatPosition).join('\n\n') : 'No dry-run positions yet.';
-  await bot.sendMessage(chatId, `📍 <b>Positions</b>\n\n${text}`, { parse_mode: 'HTML', disable_web_page_preview: true, ...positionsKeyboard() });
+  const refreshed = await Promise.allSettled(
+    rows.map(row => row.status === 'open'
+      ? refreshPosition(row, { autoExit: false }).catch(() => null)
+      : Promise.resolve(null)
+    )
+  );
+  const displayRows = rows.map((row, i) => {
+    const r = refreshed[i]?.value;
+    return r && row.status === 'open' ? { ...row, _currentMcap: r.mcap } : row;
+  });
+  const text = displayRows.length ? displayRows.map(formatPosition).join('\n\n') : 'No positions yet.';
+  return `📍 <b>Positions</b>\n\n${text}`;
+}
+
+export async function sendPositions(chatId) {
+  const text = await buildPositionsText();
+  await bot.sendMessage(chatId, text, { parse_mode: 'HTML', disable_web_page_preview: true, ...positionsKeyboard() });
 }
 
 export async function closeAllPositions(chatId, query = null) {
@@ -327,8 +342,7 @@ async function sendDryPnl(chatId, windowArg = 'all') {
       SUM(CASE WHEN status = 'closed' THEN COALESCE(pnl_sol, 0) ELSE 0 END) AS total_pnl_sol,
       AVG(CASE WHEN status = 'closed' THEN pnl_percent ELSE NULL END) AS avg_pnl_pct
     FROM dry_run_positions
-    WHERE COALESCE(execution_mode, 'dry_run') IN ('dry_run', 'confirm_dry')
-      AND opened_at_ms >= ?
+    WHERE opened_at_ms >= ?
   `).get(cutoff);
 
   const daily = db.prepare(`
@@ -339,8 +353,7 @@ async function sendDryPnl(chatId, windowArg = 'all') {
       SUM(CASE WHEN status = 'closed' AND pnl_percent < 0 THEN 1 ELSE 0 END) AS losses,
       SUM(CASE WHEN status = 'closed' THEN COALESCE(pnl_sol, 0) ELSE 0 END) AS pnl_sol
     FROM dry_run_positions
-    WHERE COALESCE(execution_mode, 'dry_run') IN ('dry_run', 'confirm_dry')
-      AND opened_at_ms >= ?
+    WHERE opened_at_ms >= ?
     GROUP BY day
     ORDER BY day DESC
     LIMIT 7
@@ -348,7 +361,7 @@ async function sendDryPnl(chatId, windowArg = 'all') {
 
   const winRate = totals.closed > 0 ? (totals.wins / totals.closed * 100) : null;
   const lines = [
-    `📊 <b>Dry Run PnL — ${escapeHtml(label)}</b>`,
+    `📊 <b>PnL — ${escapeHtml(label)}</b>`,
     '',
     `Opened: ${totals.opened} · Closed: ${totals.closed} · Open: ${totals.open_count}`,
     `Wins: ${totals.wins} · Losses: ${totals.losses} · Win rate: ${winRate !== null ? fmtPct(winRate) : 'n/a'}`,

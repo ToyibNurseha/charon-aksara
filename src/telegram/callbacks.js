@@ -25,7 +25,7 @@ import { storeDecision, logDecisionEvent } from '../db/decisions.js';
 import { createDryRunPosition, canOpenMorePositions, openPositionCount, tradingMode } from '../db/positions.js';
 import { executeLiveBuy, executeConfirmedIntent, executeConfirmedDryIntent, rejectIntent } from '../execution/router.js';
 import { intentById } from '../db/intents.js';
-import { sendCandidate, sendPosition, closePosition, closeAllPositions, updatePositionRule, toggleTrailing } from './commands.js';
+import { sendCandidate, sendPosition, closePosition, closeAllPositions, updatePositionRule, toggleTrailing, buildPositionsText } from './commands.js';
 import { requestNumericFilterInput, requestStrategyNumericInput } from './input.js';
 
 export async function handleCallback(query) {
@@ -54,7 +54,7 @@ export async function handleCallback(query) {
   if (data === 'menu:filters') return editMenuMessage(query, filtersText(), filtersKeyboard());
   if (data === 'menu:strategy') return editMenuMessage(query, strategyMenuText(), strategyKeyboard());
   if (data === 'menu:wallets') return editMenuMessage(query, walletsText(), navKeyboard());
-  if (data === 'menu:positions') return editMenuMessage(query, positionsText(), positionsKeyboard());
+  if (data === 'menu:positions') return editMenuMessage(query, await buildPositionsText(), positionsKeyboard());
   if (data === 'close_all') return closeAllPositions(chatId, query);
   if (data === 'menu:pnl') {
     const { sendPnl } = await import('./commands.js');
