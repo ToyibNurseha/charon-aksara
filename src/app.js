@@ -1,5 +1,5 @@
 import { setDefaultResultOrder } from 'node:dns';
-import { APP_NAME, SIGNAL_SERVER_URL, SIGNAL_POLL_MS, GRADUATED_POLL_MS, TRENDING_POLL_MS, POSITION_CHECK_MS, POSITION_UPDATE_MS, validateConfig } from './config.js';
+import { APP_NAME, SIGNAL_SERVER_URL, SIGNAL_POLL_MS, GRADUATED_POLL_MS, TRENDING_POLL_MS, POSITION_CHECK_MS, POSITION_UPDATE_MS, GMGN_SIGNAL_POLL_MS, validateConfig } from './config.js';
 import { initDb } from './db/connection.js';
 import { initLiveExecution } from './liveExecutor.js';
 import { setupTelegram } from './telegram/commands.js';
@@ -57,6 +57,12 @@ export async function startCharon() {
 
     console.log(`[bot] ${APP_NAME} started (standalone mode)`);
   }
+
+  // GMGN smart money signal polling (runs in both modes)
+  const { fetchGmgnSmartSignals, setSmartSignalHandler } = await import('./signals/gmgnSignal.js');
+  setSmartSignalHandler(processCandidateFromSignals);
+  await fetchGmgnSmartSignals().catch(err => console.log(`[gmgn:signal] initial fetch failed: ${err.message}`));
+  setInterval(() => fetchGmgnSmartSignals().catch(err => console.log(`[gmgn:signal] ${err.message}`)), GMGN_SIGNAL_POLL_MS);
 
   fetchSolUsdPrice().catch(() => {});
 

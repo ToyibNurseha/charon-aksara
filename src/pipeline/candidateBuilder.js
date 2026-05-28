@@ -1,6 +1,6 @@
 import { now, firstPositiveNumber, marketCapFromGmgn, tokenPriceFromGmgn, lamToSol } from '../utils.js';
 import { activeStrategy } from '../db/settings.js';
-import { fetchGmgnTokenInfo } from '../enrichment/gmgn.js';
+import { fetchGmgnTokenInfo, fetchGmgnSmartDegenTraders } from '../enrichment/gmgn.js';
 import { fetchJupiterAsset, fetchJupiterHolders, fetchJupiterChartContext } from '../enrichment/jupiter.js';
 import { fetchSavedWalletExposure } from '../enrichment/wallets.js';
 import { fetchTwitterNarrative } from '../enrichment/twitter.js';
@@ -98,6 +98,14 @@ export function filterCandidate(candidate) {
     failures.push(`saved wallet holders: ${savedCount} < ${strat.min_saved_wallet_holders}`);
   }
 
+  // Smart degen holders — only enforce when enrichment data is available (null = fetch failed, skip)
+  if (strat.min_smart_degen_holders > 0 && candidate.smartDegen !== null && candidate.smartDegen !== undefined) {
+    const count = candidate.smartDegen?.holderCount ?? 0;
+    if (count < strat.min_smart_degen_holders) {
+      failures.push(`smart degen holders: ${count} < ${strat.min_smart_degen_holders}`);
+    }
+  }
+
   // ATH distance (dip buy strategy)
   if (strat.max_ath_distance_pct < 0) {
     const athDist = candidate.chart?.distanceFromAthPercent;
@@ -136,6 +144,7 @@ export async function buildCandidate({ mint, fee = null, signature = null, gradu
   const chart = await fetchJupiterChartContext(mint);
   const savedWalletExposure = await fetchSavedWalletExposure(mint, holders);
   const twitterNarrative = await fetchTwitterNarrative(graduatedCoin || jupiterAsset, gmgn);
+  const smartDegen = await fetchGmgnSmartDegenTraders(mint);
   const priceUsd = firstPositiveNumber(tokenPriceFromGmgn(gmgn), jupiterAsset?.usdPrice, trendingToken?.price);
   const marketCapUsd = firstPositiveNumber(
     marketCapFromGmgn(gmgn),
@@ -197,6 +206,7 @@ export async function buildCandidate({ mint, fee = null, signature = null, gradu
     chart,
     savedWalletExposure,
     twitterNarrative,
+    smartDegen,
     createdAtMs: now(),
   };
   candidate.filters = filterCandidate(candidate);

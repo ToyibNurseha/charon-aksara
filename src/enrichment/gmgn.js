@@ -178,9 +178,53 @@ function normalizedTrendingRows(payload) {
   return Array.isArray(rows) ? rows : [];
 }
 
+async function fetchGmgnSmartDegenTraders(mint) {
+  if (!GMGN_ENABLED) return null;
+  try {
+    const payload = await gmgnFetch('/v1/market/token_top_traders', {
+      params: { chain: 'sol', address: mint, tag: 'smart_degen', order_by: 'profit', direction: 'desc', limit: 20 },
+    });
+    const traders = payload?.data?.data || payload?.data || [];
+    if (!Array.isArray(traders) || traders.length === 0) return { holderCount: 0, netBuyUsd: 0, openPositionCount: 0 };
+    let totalBuyUsd = 0;
+    let totalSellUsd = 0;
+    let openCount = 0;
+    for (const t of traders) {
+      totalBuyUsd += Number(t.buy_volume_cur || 0);
+      totalSellUsd += Number(t.sell_volume_cur || 0);
+      if (Number(t.unrealized_profit || 0) > 0 || Number(t.balance || 0) > 0) openCount++;
+    }
+    return { holderCount: traders.length, netBuyUsd: totalBuyUsd - totalSellUsd, openPositionCount: openCount };
+  } catch (err) {
+    if (err.response?.status !== 403 && err.response?.status !== 429) {
+      console.log(`[gmgn:smart_degen] ${mint.slice(0, 8)}... ${err.response?.status || ''} ${err.message}`);
+    }
+    return null;
+  }
+}
+
+async function fetchGmgnMarketSignals({ mcMin = 5000, mcMax = 2000000 } = {}) {
+  if (!GMGN_ENABLED) return [];
+  try {
+    const payload = await gmgnFetch('/v1/market/signal', {
+      params: { chain: 'sol', signal_type: 12, mc_min: mcMin, mc_max: mcMax },
+    });
+    const signals = payload?.data?.data || payload?.data || payload || [];
+    return Array.isArray(signals) ? signals : [];
+  } catch (err) {
+    setGmgnBackoff('token', err);
+    if (err.response?.status !== 403 && err.response?.status !== 429) {
+      console.log(`[gmgn:signal] ${err.response?.status || ''} ${err.message}`);
+    }
+    return [];
+  }
+}
+
 export {
   gmgnFetch,
   fetchGmgnTokenInfo,
+  fetchGmgnSmartDegenTraders,
+  fetchGmgnMarketSignals,
   gmgnBackoffActive,
   setGmgnBackoff,
   gmgnStatusText,

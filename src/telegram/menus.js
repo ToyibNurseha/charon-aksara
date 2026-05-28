@@ -74,6 +74,7 @@ export const strategyNumericLabels = {
   min_holders: 'minimum holders',
   max_top20_holder_percent: 'maximum top holder percent',
   min_saved_wallet_holders: 'minimum saved-wallet holders',
+  min_smart_degen_holders: 'minimum GMGN smart degen holder count (0 = off)',
   max_ath_distance_pct: 'maximum ATH distance percent (-40 = 40% below ATH, 0 = off)',
   min_source_count: 'minimum source count',
   token_age_max_ms: 'maximum token age milliseconds',
@@ -224,6 +225,7 @@ export function strategyMenuText() {
     `Trailing: ${strat.trailing_enabled ? fmtPct(strat.trailing_percent) : 'off'}`,
     `Max positions: ${strat.max_open_positions}`,
     strat.min_holders > 0 ? `Min holders: ${strat.min_holders}` : null,
+    strat.min_smart_degen_holders > 0 ? `Min smart degen: ${strat.min_smart_degen_holders}` : null,
     strat.max_ath_distance_pct < 0 ? `Max ATH distance: ${strat.max_ath_distance_pct}%` : null,
     strat.partial_tp ? `Partial TP: ${strat.partial_tp_sell_percent}% at ${fmtPct(strat.partial_tp_at_percent)}` : null,
     strat.max_hold_ms > 0 ? `Max hold: ${Math.round(strat.max_hold_ms / 60000)}m` : null,
@@ -280,6 +282,9 @@ export function strategyKeyboard() {
     [
       { text: `Saved ${strat.min_saved_wallet_holders || 'off'}`, callback_data: 'stratinput:min_saved_wallet_holders' },
       { text: `ATH ${strat.max_ath_distance_pct < 0 ? `${strat.max_ath_distance_pct}%` : 'off'}`, callback_data: 'stratinput:max_ath_distance_pct' },
+    ],
+    [
+      { text: `Smart Degen ${strat.min_smart_degen_holders || 'off'}`, callback_data: 'stratinput:min_smart_degen_holders' },
     ],
     [
       { text: `Age ${strat.token_age_max_ms > 0 ? Math.round(strat.token_age_max_ms / 60000) + 'm' : 'off'}`, callback_data: 'stratinput:token_age_max_ms' },

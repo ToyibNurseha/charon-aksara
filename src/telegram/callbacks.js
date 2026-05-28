@@ -176,6 +176,7 @@ const STRAT_PRESETS = {
   trailing_percent: [10, 15, 20, 25, 30],
   min_source_count: [1, 2, 3, 4],
   min_holders: [0, 100, 500, 1000, 2000, 5000],
+  min_smart_degen_holders: [0, 1, 2, 3, 5],
   llm_min_confidence: [0, 30, 50, 60, 70, 80, 90],
   partial_tp_at_percent: [25, 50, 75, 100, 150, 200],
   partial_tp_sell_percent: [25, 33, 50, 75],

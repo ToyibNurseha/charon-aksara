@@ -39,6 +39,7 @@ export const ENABLE_LLM = process.env.ENABLE_LLM !== 'false';
 export const SIGNAL_SERVER_URL = process.env.SIGNAL_SERVER_URL || 'http://localhost:3456';
 export const SIGNAL_SERVER_KEY = process.env.SIGNAL_SERVER_KEY || '';
 export const SIGNAL_POLL_MS = Number(process.env.SIGNAL_POLL_MS || 30_000);
+export const GMGN_SIGNAL_POLL_MS = Number(process.env.GMGN_SIGNAL_POLL_MS || 60_000);
 
 export const JSON_HEADERS = {
   Accept: 'application/json, text/plain, */*',

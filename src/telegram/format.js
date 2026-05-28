@@ -59,6 +59,7 @@ export function candidateSummary(candidate, decision = null) {
       `${candidate.twitterNarrative.metrics.replies} replies`,
       `${candidate.twitterNarrative.metrics.quotes} quotes`,
     ].join(' · ') : null,
+    candidate.smartDegen ? `Smart degen: <b>${candidate.smartDegen.holderCount}</b> wallets · Net buy: $${Math.round(candidate.smartDegen.netBuyUsd).toLocaleString()} · Open: ${candidate.smartDegen.openPositionCount}` : null,
     candidate.feeClaim ? `Fee claim: <b>${fmtSol(candidate.feeClaim.distributedSol)} SOL</b>` : null,
     candidate.twitterNarrative?.text ? `Narrative: ${escapeHtml(candidate.twitterNarrative.text.slice(0, 220))}` : null,
     decision ? `LLM: <b>${escapeHtml(decision.verdict)}</b> ${fmtPct(decision.confidence)} — ${escapeHtml(decision.reason || '')}` : null,
