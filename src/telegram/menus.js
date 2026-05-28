@@ -321,12 +321,15 @@ export function candidateButtons(candidateId, decision = null) {
     return {
       reply_markup: {
         inline_keyboard: [
-          [{ text: `Skipped: ${verdict}`, callback_data: 'noop' }],
+          [{ text: `LLM: ${verdict}`, callback_data: 'noop' }],
           [
-            { text: 'View Candidate', callback_data: `cand:${candidateId}` },
+            { text: '🟢 Buy Anyway', callback_data: `buy:${candidateId}` },
             { text: 'Ignore', callback_data: `ign:${candidateId}` },
           ],
-          [{ text: 'Positions', callback_data: 'menu:positions' }],
+          [
+            { text: 'View Candidate', callback_data: `cand:${candidateId}` },
+            { text: 'Positions', callback_data: 'menu:positions' },
+          ],
         ],
       },
     };
@@ -371,6 +374,7 @@ export function batchRevealButtons(batchId, rows, decision, triggerCandidateId =
   const triggerId = Number(triggerCandidateId || 0);
   const keyboard = [];
   if (selectedId) keyboard.push([{ text: 'Reveal Pick', callback_data: `cand:${selectedId}` }]);
+  if (!selectedId && triggerId) keyboard.push([{ text: '🟢 Buy Trigger', callback_data: `buy:${triggerId}` }]);
   keyboard.push([{ text: 'Reveal Batch', callback_data: `batch:${batchId}` }]);
   if (triggerId && triggerId !== selectedId) keyboard.push([{ text: 'Reveal Trigger', callback_data: `cand:${triggerId}` }]);
   keyboard.push([{ text: 'Positions', callback_data: 'menu:positions' }]);
