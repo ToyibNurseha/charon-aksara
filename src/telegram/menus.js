@@ -337,13 +337,14 @@ export function candidateButtons(candidateId, decision = null) {
         inline_keyboard: [
           [{ text: 'LLM BUY selected', callback_data: 'noop' }],
           [
+            { text: '🟢 Buy Now', callback_data: `buy:${candidateId}` },
+            { text: 'Ignore', callback_data: `ign:${candidateId}` },
+          ],
+          [
             { text: 'View Candidate', callback_data: `cand:${candidateId}` },
             { text: 'Positions', callback_data: 'menu:positions' },
           ],
-          [
-            { text: 'Set TP/SL', callback_data: `tpsl:c:${candidateId}` },
-            { text: 'Ignore', callback_data: `ign:${candidateId}` },
-          ],
+          [{ text: 'Set TP/SL', callback_data: `tpsl:c:${candidateId}` }],
         ],
       },
     };
