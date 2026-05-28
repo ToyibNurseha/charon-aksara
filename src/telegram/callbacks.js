@@ -105,10 +105,11 @@ export async function handleCallback(query) {
       return bot.sendMessage(chatId, `Max open positions reached (${openPositionCount()}/${numSetting('max_open_positions', 3)}). Close one first or raise the limit.`);
     }
     const candidate = row.candidate;
-    const decision = { verdict: 'BUY', confidence: 100, reason: 'Manual dry buy', risks: [], suggested_tp_percent: numSetting('default_tp_percent', 50), suggested_sl_percent: numSetting('default_sl_percent', -25) };
+    const mode = tradingMode();
+    const decision = { verdict: 'BUY', confidence: 100, reason: 'Manual buy', risks: [], suggested_tp_percent: numSetting('default_tp_percent', 50), suggested_sl_percent: numSetting('default_sl_percent', -25) };
     const decisionId = storeDecision(row.id, candidate, decision);
     decision.id = decisionId;
-    if (tradingMode() === 'live') {
+    if (mode === 'live' || mode === 'confirm') {
       await executeLiveBuy(row, decision, 'manual', [row], row.id);
       return;
     }
@@ -119,7 +120,7 @@ export async function handleCallback(query) {
       selectedRow: row,
       rows: [row],
       decision,
-      mode: tradingMode(),
+      mode,
       action: 'manual_dry_run_entry',
       execution: { positionId },
     });
