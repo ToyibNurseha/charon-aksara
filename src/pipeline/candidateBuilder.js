@@ -42,6 +42,19 @@ export function filterCandidate(candidate) {
   const rugRatio = Number(candidate.trending?.rug_ratio ?? 0);
   const bundlerRate = Number(candidate.trending?.bundler_rate ?? 0);
 
+  // Token age check — uses graduation date or trending seenAt as proxy
+  if (strat.token_age_max_ms > 0) {
+    const tokenTs = Number(
+      candidate.graduation?.graduationDate ||
+      candidate.trending?.seenAt ||
+      candidate.graduation?.seenAt ||
+      0
+    );
+    if (tokenTs > 0 && (now() - tokenTs) > strat.token_age_max_ms) {
+      failures.push(`token age: too old (graduated ${Math.round((now() - tokenTs) / 60000)}m ago, max ${strat.token_age_max_ms / 60000}m)`);
+    }
+  }
+
   // Fee claim check
   if (candidate.feeClaim) {
     const minFee = strat.min_fee_claim_sol ?? 0.5;
