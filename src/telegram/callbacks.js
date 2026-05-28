@@ -25,7 +25,7 @@ import { storeDecision, logDecisionEvent } from '../db/decisions.js';
 import { createDryRunPosition, canOpenMorePositions, openPositionCount, tradingMode } from '../db/positions.js';
 import { executeLiveBuy, executeConfirmedIntent, executeConfirmedDryIntent, rejectIntent } from '../execution/router.js';
 import { intentById } from '../db/intents.js';
-import { sendCandidate, sendPosition, closePosition, closeAllPositions, updatePositionRule, toggleTrailing, buildPositionsText } from './commands.js';
+import { sendCandidate, sendPosition, closePosition, closeAllPositions, updatePositionRule, toggleTrailing, buildPositionsText, markPositionClosedExternal } from './commands.js';
 import { requestNumericFilterInput, requestStrategyNumericInput } from './input.js';
 
 export async function handleCallback(query) {
@@ -132,6 +132,7 @@ export async function handleCallback(query) {
   if (kind === 'tp') return updatePositionRule(chatId, Number(id), 'tp_percent', Number(value), query);
   if (kind === 'sl') return updatePositionRule(chatId, Number(id), 'sl_percent', Number(value), query);
   if (kind === 'trail') return toggleTrailing(chatId, Number(id), query);
+  if (kind === 'mark_closed') return markPositionClosedExternal(chatId, Number(id));
   return null;
 }
 

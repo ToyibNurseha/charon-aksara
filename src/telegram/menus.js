@@ -386,7 +386,7 @@ export function positionButtons(positionId) {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: 'Dry Sell', callback_data: `sell:${positionId}` },
+          { text: 'Sell', callback_data: `sell:${positionId}` },
           { text: 'Refresh', callback_data: `pos:${positionId}` },
         ],
         [
@@ -398,6 +398,7 @@ export function positionButtons(positionId) {
           { text: 'SL -25%', callback_data: `sl:${positionId}:-25` },
         ],
         [{ text: 'Trail On/Off', callback_data: `trail:${positionId}` }],
+        [{ text: '✅ Mark Closed (sold externally)', callback_data: `mark_closed:${positionId}` }],
       ],
     },
   };

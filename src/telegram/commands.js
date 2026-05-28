@@ -26,6 +26,7 @@ import { sendTelegram, sendBatch, sendPositionOpen } from './send.js';
 import { candidateSummary, formatPosition } from './format.js';
 import { refreshPosition } from '../execution/positions.js';
 import { executeLiveSell } from '../execution/router.js';
+import { fetchLiveTokenBalance } from '../liveExecutor.js';
 import { handleCallback, editMenuMessage } from './callbacks.js';
 import { consumeNumericFilterInput } from './input.js';
 import { runLearning, sendLessons } from '../learning/commands.js';
@@ -219,19 +220,51 @@ export async function closePosition(chatId, id, reason) {
   const pnlPercent = row.entry_mcap ? (Number(mcap) / Number(row.entry_mcap) - 1) * 100 : 0;
   const pnlSol = Number(row.size_sol) * pnlPercent / 100;
   let sell = null;
-  if (row.execution_mode === 'live') sell = await executeLiveSell(row, reason);
+  let effectiveReason = reason;
+  if (row.execution_mode === 'live') {
+    try {
+      sell = await executeLiveSell(row, reason);
+    } catch (sellErr) {
+      // Tokens may have been sold externally — check on-chain balance
+      const onChainBalance = await fetchLiveTokenBalance(row.mint).catch(() => null);
+      if (onChainBalance === null || Number(onChainBalance) > 0) {
+        // Balance unknown or still non-zero — propagate error
+        throw sellErr;
+      }
+      // Wallet has 0 tokens: already sold externally, just close the record
+      effectiveReason = 'manual_external';
+      await bot.sendMessage(chatId, `⚠️ No tokens in wallet — position already sold externally. Closing record.`, { parse_mode: 'HTML' });
+    }
+  }
   db.prepare(`
     UPDATE dry_run_positions
     SET status = 'closed', closed_at_ms = ?, exit_price = ?, exit_mcap = ?, exit_reason = ?,
         pnl_percent = ?, pnl_sol = ?, exit_signature = ?
     WHERE id = ?
-  `).run(now(), price, mcap, reason, pnlPercent, pnlSol, sell?.signature || null, id);
+  `).run(now(), price, mcap, effectiveReason, pnlPercent, pnlSol, sell?.signature || null, id);
   db.prepare(`
     INSERT INTO dry_run_trades (position_id, mint, side, at_ms, price, mcap, size_sol, token_amount_est, reason, payload_json)
     VALUES (?, ?, 'sell', ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, row.mint, now(), price, mcap, row.size_sol, row.token_amount_est, reason, json({ pnlPercent, pnlSol, sell }));
+  `).run(id, row.mint, now(), price, mcap, row.size_sol, row.token_amount_est, effectiveReason, json({ pnlPercent, pnlSol, sell }));
   const label = row.execution_mode === 'live' ? 'Closed live position' : 'Closed dry-run position';
-  await bot.sendMessage(chatId, `${label} #${id}: ${escapeHtml(reason)} ${fmtPct(pnlPercent)}`, { parse_mode: 'HTML' });
+  await bot.sendMessage(chatId, `${label} #${id}: ${escapeHtml(effectiveReason)} ${fmtPct(pnlPercent)}`, { parse_mode: 'HTML' });
+}
+
+export async function markPositionClosedExternal(chatId, id) {
+  const row = db.prepare('SELECT * FROM dry_run_positions WHERE id = ?').get(id);
+  if (!row || row.status !== 'open') return bot.sendMessage(chatId, 'Open position not found.');
+  const result = await refreshPosition(row, { autoExit: false }).catch(() => null);
+  const price = result?.price ?? row.high_water_price ?? row.entry_price;
+  const mcap = result?.mcap ?? row.high_water_mcap ?? row.entry_mcap;
+  const pnlPercent = row.entry_mcap ? (Number(mcap) / Number(row.entry_mcap) - 1) * 100 : 0;
+  const pnlSol = Number(row.size_sol) * pnlPercent / 100;
+  db.prepare(`
+    UPDATE dry_run_positions
+    SET status = 'closed', closed_at_ms = ?, exit_price = ?, exit_mcap = ?, exit_reason = ?,
+        pnl_percent = ?, pnl_sol = ?
+    WHERE id = ?
+  `).run(now(), price, mcap, 'manual_external', pnlPercent, pnlSol, id);
+  await bot.sendMessage(chatId, `Position #${id} marked closed (sold externally) ${fmtPct(pnlPercent)}`, { parse_mode: 'HTML' });
 }
 
 export async function updatePositionRule(chatId, id, field, nextValue, query = null) {

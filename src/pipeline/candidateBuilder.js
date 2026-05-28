@@ -33,7 +33,7 @@ export function filterCandidate(candidate) {
   const mcap = candidate.metrics.marketCapUsd;
   const totalFees = candidate.metrics.gmgnTotalFeesSol;
   const gradVolume = candidate.metrics.graduatedVolumeUsd;
-  const maxHolder = candidate.holders.maxHolderPercent;
+  const maxHolder = candidate.holders.top20Percent;
   const savedCount = candidate.savedWalletExposure.holderCount;
   const feeSol = candidate.feeClaim?.distributedSol;
   const holderCount = Number(candidate.metrics.holderCount || 0);
@@ -90,7 +90,7 @@ export function filterCandidate(candidate) {
 
   // Top holder concentration
   if (strat.max_top20_holder_percent < 100 && Number.isFinite(maxHolder) && maxHolder > strat.max_top20_holder_percent) {
-    failures.push(`max top holder: ${maxHolder}% > ${strat.max_top20_holder_percent}%`);
+    failures.push(`top20 holders: ${maxHolder?.toFixed(1)}% > ${strat.max_top20_holder_percent}%`);
   }
 
   // Saved wallet holders
