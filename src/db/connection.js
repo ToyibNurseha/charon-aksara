@@ -254,28 +254,28 @@ export function initDb() {
     require_fee_claim: true,
     token_age_max_ms: 3600000,
     min_mcap_usd: 7000,
-    max_mcap_usd: 200000,
+    max_mcap_usd: 300000,
     min_fee_claim_sol: 0.5,
     min_gmgn_total_fee_sol: 10,
     min_holders: 0,
-    max_top20_holder_percent: 100,
-    min_saved_wallet_holders: 0,
+    max_top20_holder_percent: 60,
+    min_saved_wallet_holders: 1,
     max_ath_distance_pct: 0,
     min_graduated_volume_usd: 0,
     trending_min_volume_usd: 0,
     trending_min_swaps: 0,
-    trending_max_rug_ratio: 0.3,
-    trending_max_bundler_rate: 0.5,
+    trending_max_rug_ratio: 0.15,
+    trending_max_bundler_rate: 0.2,
     position_size_sol: 0.1,
     max_open_positions: 3,
     tp_percent: 50,
     sl_percent: -25,
     trailing_enabled: true,
-    trailing_percent: 20,
+    trailing_percent: 10,
     partial_tp: false,
     partial_tp_at_percent: 0,
     partial_tp_sell_percent: 0,
-    max_hold_ms: 0,
+    max_hold_ms: 14400000,
     use_llm: true,
     llm_min_confidence: 50,
   }), ts);
@@ -375,6 +375,25 @@ export function initDb() {
     use_llm: false,
     llm_min_confidence: 0,
   }), ts);
+
+  // Patch existing strategies with updated defaults
+  const stratPatches = {
+    sniper: {
+      max_mcap_usd: 300000,
+      max_top20_holder_percent: 60,
+      min_saved_wallet_holders: 1,
+      trending_max_rug_ratio: 0.15,
+      trending_max_bundler_rate: 0.2,
+      trailing_percent: 10,
+      max_hold_ms: 14400000,
+    },
+  };
+  for (const [id, patch] of Object.entries(stratPatches)) {
+    const row = db.prepare('SELECT config_json FROM strategies WHERE id = ?').get(id);
+    if (!row) continue;
+    const config = { ...JSON.parse(row.config_json), ...patch };
+    db.prepare('UPDATE strategies SET config_json = ? WHERE id = ?').run(JSON.stringify(config), id);
+  }
 }
 
 export function ensureColumn(table, column, ddl) {
