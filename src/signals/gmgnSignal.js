@@ -14,10 +14,7 @@ export async function fetchGmgnSmartSignals() {
   if (gmgnBackoffActive('token')) return;
 
   const signals = await fetchGmgnMarketSignals({ mcMin: 5000, mcMax: 2000000 });
-  if (!signals.length) {
-    console.log('[gmgn:signal] 0 smart money signals');
-    return;
-  }
+  if (!signals.length) return;
 
   pruneSeen(seenSignals, 10 * 60 * 1000);
   let triggered = 0;

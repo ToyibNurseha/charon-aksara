@@ -213,8 +213,9 @@ async function fetchGmgnMarketSignals({ mcMin = 5000, mcMax = 2000000 } = {}) {
     return Array.isArray(signals) ? signals : [];
   } catch (err) {
     setGmgnBackoff('token', err);
-    if (err.response?.status !== 403 && err.response?.status !== 429) {
-      console.log(`[gmgn:signal] ${err.response?.status || ''} ${err.message}`);
+    const status = err.response?.status;
+    if (status !== 403 && status !== 429 && status !== 404) {
+      console.log(`[gmgn:signal] ${status || ''} ${err.message}`);
     }
     return [];
   }
