@@ -16,6 +16,7 @@ import {
   mainMenuText,
   walletsText,
   positionsText,
+  positionsKeyboard,
   candidateButtons,
   positionButtons,
   strategyMenuText,
@@ -163,7 +164,20 @@ export async function sendCandidate(chatId, id) {
 export async function sendPositions(chatId) {
   const rows = allPositions(12);
   const text = rows.length ? rows.map(formatPosition).join('\n\n') : 'No dry-run positions yet.';
-  await bot.sendMessage(chatId, `📍 <b>Positions</b>\n\n${text}`, { parse_mode: 'HTML', disable_web_page_preview: true });
+  await bot.sendMessage(chatId, `📍 <b>Positions</b>\n\n${text}`, { parse_mode: 'HTML', disable_web_page_preview: true, ...positionsKeyboard() });
+}
+
+export async function closeAllPositions(chatId, query = null) {
+  const rows = openPositionRows();
+  if (!rows.length) {
+    if (query) return bot.answerCallbackQuery(query.id, { text: 'No open positions.' }).catch(() => {});
+    return bot.sendMessage(chatId, 'No open positions.');
+  }
+  const results = await Promise.allSettled(rows.map(row => closePosition(chatId, row.id, 'MANUAL_CLOSE_ALL')));
+  const closed = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.length - closed;
+  const msg = failed > 0 ? `Closed ${closed}/${rows.length} positions. ${failed} failed.` : `Closed all ${closed} positions.`;
+  if (query) await bot.answerCallbackQuery(query.id, { text: msg }).catch(() => {});
 }
 
 export async function sendPosition(chatId, id, query = null) {
@@ -360,6 +374,10 @@ function parseSetFilter(text) {
 
 function allPositions(limit = 10) {
   return db.prepare('SELECT * FROM dry_run_positions ORDER BY id DESC LIMIT ?').all(limit);
+}
+
+function openPositionRows() {
+  return db.prepare('SELECT * FROM dry_run_positions WHERE status = ? ORDER BY id DESC').all('open');
 }
 
 function savedWallets() {

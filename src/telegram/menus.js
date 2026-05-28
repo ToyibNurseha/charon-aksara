@@ -1,6 +1,6 @@
 import { escapeHtml, fmtPct, fmtSol, fmtUsd, short } from '../format.js';
 import { numSetting, boolSetting, setting, activeStrategy, allStrategies } from '../db/settings.js';
-import { openPositionCount, tradingMode, allPositions } from '../db/positions.js';
+import { openPositionCount, tradingMode, allPositions, openPositions } from '../db/positions.js';
 import { savedWallets } from '../enrichment/wallets.js';
 import { gmgnStatusText } from '../enrichment/gmgn.js';
 import { formatPosition } from './format.js';
@@ -189,6 +189,21 @@ export function positionsText() {
   const rows = allPositions(12);
   const text = rows.length ? rows.map(formatPosition).join('\n\n') : 'No dry-run positions yet.';
   return `📍 <b>Positions</b>\n\n${text}`;
+}
+
+export function positionsKeyboard() {
+  const open = openPositions();
+  const rows = [];
+  for (let i = 0; i < open.length; i += 2) {
+    const pair = open.slice(i, i + 2).map(p => ({
+      text: `#${p.id} ${escapeHtml(p.symbol || p.mint.slice(0, 6))}`,
+      callback_data: `pos:${p.id}`,
+    }));
+    rows.push(pair);
+  }
+  if (open.length > 0) rows.push([{ text: '🔴 Close All Open', callback_data: 'close_all' }]);
+  rows.push([{ text: 'Back', callback_data: 'menu:main' }]);
+  return { reply_markup: { inline_keyboard: rows } };
 }
 
 export function strategyMenuText() {
