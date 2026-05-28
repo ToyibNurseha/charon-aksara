@@ -174,7 +174,9 @@ export function navKeyboard(rows = []) {
 }
 
 export function mainMenuText() {
-  return `🛶 <b>Charon</b>\nDry-run trench agent online.`;
+  const mode = tradingMode();
+  const modeLabel = { dry_run: 'Dry-run', confirm_dry: 'Confirm-dry', confirm: 'Confirm', live: '🔴 Live' }[mode] || mode;
+  return `🛶 <b>Charon</b>\n${modeLabel} trench agent online.`;
 }
 
 export function walletsText() {
